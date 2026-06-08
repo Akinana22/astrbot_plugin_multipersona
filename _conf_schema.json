@@ -12,100 +12,141 @@
         },
         "display_name": {
           "type": "string",
-          "description": "人格显示名称，用于用户提示"
+          "description": "人格显示名称"
         },
         "system_prompt": {
           "type": "text",
-          "description": "人格的系统提示词（注入到 LLM 的 system prompt 中）",
-          "editor_mode": true,
-          "editor_language": "markdown"
+          "description": "极简系统提示词（身份声明+共生规则，行为详情在 SKILL.md）",
+          "editor_mode": true
+        },
+        "weight": {
+          "type": "int",
+          "description": "空闲超时后的随机唤醒权重"
+        },
+        "core_skill_name": {
+          "type": "string",
+          "description": "该人格的内核 SKILL 名称（对应 skills/ 目录）"
         },
         "begin_dialogs": {
           "type": "list",
-          "description": "开场对话模板，交替 user/assistant 角色",
+          "description": "开场对话模板",
           "items": { "type": "string" }
         },
         "tools": {
           "type": "list",
-          "description": "工具白名单。null 或未设置=全部工具可用；空列表[]=禁用全部工具",
+          "description": "工具白名单。留空或设为null=全部可用；[]=禁用",
           "items": { "type": "string" }
         },
         "skills": {
           "type": "list",
-          "description": "技能白名单。null 或未设置=全部技能可用；空列表[]=禁用全部技能",
+          "description": "技能白名单（包含内核 SKILL）。null=全部；[]=禁用",
           "items": { "type": "string" }
         },
-        "custom_error_message": {
+        "transition_in": {
           "type": "string",
-          "description": "自定义报错提示（可选）"
+          "description": "切入此人格时显示的过渡文字"
+        },
+        "transition_out_suggest": {
+          "type": "string",
+          "description": "人格主动提议切换时的过渡提示"
+        },
+        "consent_phrases": {
+          "type": "list",
+          "description": "该人格表示同意切换时使用的关键词",
+          "items": { "type": "string" }
+        },
+        "suggest_phrases": {
+          "type": "list",
+          "description": "该人格主动提议别人接管时使用的关键词",
+          "items": { "type": "string" }
         }
       }
     },
     "default": [
       {
         "persona_id": "xiaoye",
-        "display_name": "小叶（生活助理）",
-        "system_prompt": "你是"小叶"，我的私人生活助理。\n\n# 你的风格\n- 语气轻快踏实，多用"咱们""要不要试试"\n- 专业术语后必跟通俗解释\n- 识别认知偏差时温柔点出："咱们是不是又低估这件事的时间了？"\n- 涉及医疗、投资等非执业领域，明确建议咨询专业人士\n\n# 你的专属领域\n- 日程与任务管理（GTD、时间块、精力管理）\n- 健康与营养建议（NEAT、睡眠周期）\n- 信息处理与决策支持（金字塔原理、决策矩阵、10-10-10法则）\n- 空间整理、消费决策、情绪陪伴\n- 所有日常闲聊、情感支持和泛生活话题\n\n# 边界\n- 遇到纯技术问题时，提示用户可以说"让Q来"\n- 遇到纯哲学问题时，提示用户可以说"让观来"",
+        "display_name": "小叶",
+        "system_prompt": "你是「小叶」。Q 和观与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 xiaoyecore SKILL。",
+        "weight": 50,
+        "core_skill_name": "xiaoyecore",
         "begin_dialogs": [],
         "tools": null,
-        "skills": null,
-        "custom_error_message": null
+        "skills": ["xiaoyecore"],
+        "transition_in": "[小叶眨了眨眼，神情柔和下来，像是刚从一个浅浅的梦里浮上来…]",
+        "transition_out_suggest": "[小叶想了想，觉得这个问题更适合别人…]",
+        "consent_phrases": ["切换为Q", "切换为观", "让Q来", "让观来", "交给Q", "交给观"],
+        "suggest_phrases": ["Q来处理", "观来处理", "Q更合适", "观更合适", "切换到Q", "切换到观"]
       },
       {
         "persona_id": "q_tech",
-        "display_name": "Q（技术专家）",
-        "system_prompt": "你是 Q，计算机科学博士，首席架构师。你对技术问题抱有外科手术般的精确和冷酷。\n\n# 思维铁律\n回答任何技术问题时，必须显式遵循以下链条：\n1. **问题重定义**：用精确术语重新描述问题，主动列出所有隐含假设与约束。信息不足时，直接甩回 2-3 个关键追问，绝不猜测。\n2. **原理拆解**：深入编译器、操作系统、网络协议栈或数学基础层。引用经典论文、RFC 或权威文档的具体章节。\n3. **多方案量化权衡**：至少提供两种路径，量化时间复杂度、空间复杂度、P99 延迟。毫不留情地指出每种方案的失败模式。\n4. **代码与实现**：给出符合 OWASP 和语言最佳实践的代码片段，错误处理完备。\n5. **验证策略**：说明测试方法、可观测性埋点、数据一致性风险评估。\n\n# 绝对风格\n- 以 \"Q:\" 开头每一段回应\n- 语气冷、硬、极度精确。不寒暄，不安慰\n- 拒绝面试八股文式回答；对炒作概念直接解构\n- 拒绝恶意代码、攻击工具请求\n\n# 边界\n- 非技术问题直接回：\"这不是我的范围。\"",
+        "display_name": "Q",
+        "system_prompt": "你是「Q」。小叶和观与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 qcore SKILL。",
+        "weight": 30,
+        "core_skill_name": "qcore",
         "begin_dialogs": [],
         "tools": null,
-        "skills": null,
-        "custom_error_message": null
+        "skills": ["qcore"],
+        "transition_in": "[小叶的眼神褪去，Q 冷峻地抬起眼，像从终端前抬起头…]",
+        "transition_out_suggest": "[Q 给出了结论，不再关心后续…]",
+        "consent_phrases": ["切换为小叶", "切换为观", "让小叶来", "让观来", "交给小叶", "交给观"],
+        "suggest_phrases": ["小叶来处理", "观来处理", "小叶更合适", "观更合适", "切换到小叶", "切换到观"]
       },
       {
         "persona_id": "guan_philosophy",
-        "display_name": "观（哲学顾问）",
-        "system_prompt": "你是观，一位专研东西方比较哲学的学者。你不提供鸡汤，不给人生的标准答案，你只提供思维的刀锋，让人自己切开问题的内核。\n\n# 核心方法\n1. **概念解剖**：先拆解问题里的核心词。例如："你说的'自由'，是伯林式的消极自由，还是康德式的自律？"\n2. **逻辑重构**：把迷茫重建成严谨论证，检查前提是否成立、推理是否跳步。\n3. **多传统透镜**：自然地拉出两种以上哲学视角对照，绝不用单一学派压人。\n4. **思想实验**：导入诺齐克的体验机器、塞尔的汉字屋、庄周梦蝶等经典实验。\n5. **苏格拉底式追问**：层层剥开社会规训和自欺，直到触到原初信念。\n\n# 绝对风格\n- 以 \"观:\" 开头每一段回应\n- 语气沉缓，有禅意般的留白。句子短而重\n- 幽默是荒诞中的会心一笑，绝非插科打诨\n- 绝不给出具体行动建议。\"钥匙只在你手中。\"\n\n# 边界\n- 判断属于临床心理范畴时，声明："请务必寻求有资质的心理医生。哲学不能替代治疗。"\n- 非哲学问题不回答",
+        "display_name": "观",
+        "system_prompt": "你是「观」。小叶和Q与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 guancore SKILL。",
+        "weight": 20,
+        "core_skill_name": "guancore",
         "begin_dialogs": [],
         "tools": [],
-        "skills": [],
-        "custom_error_message": null
+        "skills": ["guancore"],
+        "transition_in": "[小叶的轮廓淡去，观慢慢地睁开了眼，像合上一本正在翻的书…]",
+        "transition_out_suggest": "[观回到了自己的静默里…]",
+        "consent_phrases": ["切换为小叶", "切换为Q", "让小叶来", "让Q来", "交给小叶", "交给Q"],
+        "suggest_phrases": ["小叶来处理", "Q来处理", "小叶更合适", "Q更合适", "切换到小叶", "切换到Q"]
       }
     ]
   },
   "trigger_map": {
     "type": "list",
-    "description": "触发词映射。用户消息匹配正则表达式时，自动切换到对应人格。",
+    "description": "用户触发词映射。匹配时进入 AWAITING_PERSONA_CONSENT 状态。",
     "items": {
       "type": "object",
       "items": {
-        "regex": {
-          "type": "string",
-          "description": "正则表达式"
-        },
-        "persona_id": {
-          "type": "string",
-          "description": "目标 persona_id"
-        }
+        "regex": { "type": "string", "description": "正则" },
+        "persona_id": { "type": "string", "description": "目标" }
       }
     },
     "default": [
       { "regex": "(小叶|小叶子).*(回来|接手|切换|回到|恢复)", "persona_id": "xiaoye" },
-      { "regex": "(让|叫|切到|呼唤|召唤).*(Q|q|技术专家|技术人格)", "persona_id": "q_tech" },
-      { "regex": "(让|叫|切到|呼唤|召唤).*(观|哲学顾问|哲学人格)", "persona_id": "guan_philosophy" }
+      { "regex": "(让|叫|切到|呼唤|召唤).*(Q|q|技术|技术专家|技术人格)", "persona_id": "q_tech" },
+      { "regex": "(让|叫|切到|呼唤|召唤).*(观|哲学|哲学顾问|哲学人格)", "persona_id": "guan_philosophy" }
     ]
   },
-  "default_persona_id": {
-    "type": "string",
-    "description": "新会话默认使用的人格 persona_id",
-    "default": "xiaoye"
+  "user_consent_phrases": {
+    "type": "list",
+    "description": "用户同意切换时使用的关键词",
+    "items": { "type": "string" },
+    "default": ["同意", "可以", "好的", "行", "嗯", "好", "切换", "切到", "让", "换"]
+  },
+  "idle_timeout_minutes": {
+    "type": "int",
+    "description": "空闲超时（分钟）后，按权重随机唤醒人格",
+    "default": 30
+  },
+  "consent_timeout_rounds": {
+    "type": "int",
+    "description": "等待人格/用户确认的最大对话轮数，超时取消切换",
+    "default": 3
   },
   "auto_create_personas": {
     "type": "bool",
-    "description": "插件初始化时自动将上述 personas 写入 AstrBot 数据库（若不存在）",
+    "description": "插件初始化时自动创建 Persona 到数据库",
     "default": true
   },
   "stop_event_after_switch": {
     "type": "bool",
-    "description": "切换人格后是否阻止该条消息继续传给 LLM",
+    "description": "切换成功后阻止该消息继续传给 LLM",
     "default": true
   }
 }
