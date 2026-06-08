@@ -172,11 +172,17 @@ class Main(star.Star):
         if cfg_dir:
             self._data_dir = cfg_dir
         else:
-            config_dir = os.path.dirname(getattr(self.config, "_config_path", ""))
-            if not config_dir:
+            cfg_path = (
+                getattr(self.config, "_config_path", None)
+                if hasattr(self.config, "_config_path")
+                else None
+            )
+            if cfg_path and os.path.isfile(cfg_path):
+                config_dir = os.path.dirname(cfg_path)
+            else:
                 config_dir = os.path.join("data", "config")
             self._data_dir = os.path.join(
-                os.path.dirname(config_dir),
+                os.path.dirname(config_dir) or "data",
                 "astrbot_plugin_multipersona",
             )
         os.makedirs(self._data_dir, exist_ok=True)
