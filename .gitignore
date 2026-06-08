@@ -217,5 +217,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# AstrBot plugin
-.astrbot-plugin/
+# AstrBot plugin build artifacts
+.astrbot-plugin/dist/
+.astrbot-plugin/build/
+
+# Reference / artifacts (not part of plugin)
+AstrBot-master/
+astrbot_plugin_llmallowlist/
+*.zip

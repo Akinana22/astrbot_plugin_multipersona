@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import random
 import re
@@ -12,9 +13,68 @@ IDLE = 0
 AWAITING_PERSONA_CONSENT = 1
 AWAITING_USER_CONSENT = 2
 
+# ── 首次运行时创建的默认数据 ────────────────────────────
+
+DEFAULT_PERSONAS = {
+    "xiaoye": {
+        "persona_id": "xiaoye",
+        "display_name": "小叶",
+        "system_prompt": "你是「小叶」。Q 和观与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 xiaoyecore SKILL。",
+        "begin_dialogs": [],
+        "tools": None,
+        "skills": ["xiaoyecore"],
+        "weight": 50,
+        "core_skill_name": "xiaoyecore",
+        "transition_in": "[小叶眨了眨眼，神情柔和下来，像是刚从一个浅浅的梦里浮上来…]",
+        "transition_out_suggest": "[小叶想了想，觉得这个问题更适合别人…]",
+        "consent_phrases": ["切换为Q", "切换为观", "让Q来", "让观来", "交给Q", "交给观"],
+        "suggest_phrases": ["Q来处理", "观来处理", "Q更合适", "观更合适"],
+        "custom_error_message": None,
+    },
+    "q_tech": {
+        "persona_id": "q_tech",
+        "display_name": "Q",
+        "system_prompt": "你是「Q」。小叶和观与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 qcore SKILL。",
+        "begin_dialogs": [],
+        "tools": None,
+        "skills": ["qcore"],
+        "weight": 30,
+        "core_skill_name": "qcore",
+        "transition_in": "[小叶的眼神褪去，Q 冷峻地抬起眼，像从终端前抬起头…]",
+        "transition_out_suggest": "[Q 给出了结论，不再关心后续…]",
+        "consent_phrases": ["切换为小叶", "切换为观", "让小叶来", "让观来", "交给小叶", "交给观"],
+        "suggest_phrases": ["小叶来处理", "观来处理", "小叶更合适", "观更合适"],
+        "custom_error_message": None,
+    },
+    "guan_philosophy": {
+        "persona_id": "guan_philosophy",
+        "display_name": "观",
+        "system_prompt": "你是「观」。小叶和Q与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 guancore SKILL。",
+        "begin_dialogs": [],
+        "tools": [],
+        "skills": ["guancore"],
+        "weight": 20,
+        "core_skill_name": "guancore",
+        "transition_in": "[小叶的轮廓淡去，观慢慢地睁开了眼，像合上一本正在翻的书…]",
+        "transition_out_suggest": "[观回到了自己的静默里…]",
+        "consent_phrases": ["切换为小叶", "切换为Q", "让小叶来", "让Q来", "交给小叶", "交给Q"],
+        "suggest_phrases": ["小叶来处理", "Q来处理", "小叶更合适", "Q更合适"],
+        "custom_error_message": None,
+    },
+}
+
+DEFAULT_TRIGGER_MAP = [
+    {"regex": "(小叶|小叶子).*(回来|接手|切换|回到|恢复)", "persona_id": "xiaoye"},
+    {"regex": "(让|叫|切到|呼唤|召唤).*(Q|q|技术|技术专家|技术人格)", "persona_id": "q_tech"},
+    {"regex": "(让|叫|切到|呼唤|召唤).*(观|哲学|哲学顾问|哲学人格)", "persona_id": "guan_philosophy"},
+]
+
+DEFAULT_USER_CONSENT_PHRASES = ["同意", "可以", "好的", "行", "嗯", "好", "切换", "切到", "让", "换"]
+
+
+# ── 工具函数 ───────────────────────────────────────────
 
 def _norm_list(val):
-    """None → None, [] → [], [list] → [list]"""
     if val is None:
         return None
     if isinstance(val, list):
@@ -23,7 +83,6 @@ def _norm_list(val):
 
 
 def _strip_frontmatter(text: str) -> str:
-    """剥掉 SKILL.md 的 YAML frontmatter，返回正文内容。"""
     if not text.startswith("---"):
         return text
     idx = text.find("---", 3)
@@ -33,7 +92,6 @@ def _strip_frontmatter(text: str) -> str:
 
 
 def _extract_response_text(response) -> str:
-    """从 OnLLMResponseEvent 的 response 中提取纯文本。"""
     if response is None:
         return ""
     if isinstance(response, str):
@@ -45,17 +103,24 @@ def _extract_response_text(response) -> str:
     return str(response)
 
 
+def _write_json(path: str, data):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _read_json(path: str) -> dict | list:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ── 主类 ───────────────────────────────────────────────
+
 class Main(star.Star):
     """
     多人格切换插件（astrbot_plugin_multipersona）。
 
-    核心设计：
-    - 每个 Persona 的极简 system_prompt 只在 AstrBot 数据库中
-    - 完整人格内核放在 skills/<core_skill_name>/SKILL.md
-    - @on_llm_request 每轮注入当前人格的 SKILL.md，永不稀释
-    - 独立记忆空间：每个人格独立 conversation
-    - 双阶段确认切换协议
-    - 空闲超时按权重随机唤醒
+    每个人格以独立 JSON 文件持久化，插件更新不会覆盖用户修改。
+    人格内核注入 via @on_llm_request，永不稀释。
     """
 
     def __init__(self, context: star.Context, config: AstrBotConfig) -> None:
@@ -63,16 +128,22 @@ class Main(star.Star):
         self.config = config
         self._init_done = False
 
-        # umo → {persona_id: cid}
+        # 持久化数据
+        self._personas: dict[str, dict] = {}
+        self._trigger_map: list[dict] = []
+        self._user_consent_phrases: list[str] = []
+        self._data_dir = ""
+
+        # umo → {pid: cid}
         self._conv_map: dict[str, dict[str, str]] = {}
 
-        # umo → (persona_id, timestamp)
+        # umo → (pid, timestamp)
         self._last_active: dict[str, tuple[str, float]] = {}
 
         # umo → {state, target_pid, trigger_pid, rounds, timestamp}
         self._switch_state: dict[str, dict] = {}
 
-        # 内核缓存: core_skill_name → content
+        # core_skill_name → content
         self._kernel_cache: dict[str, str] = {}
 
     # ── 生命周期 ────────────────────────────────────────
@@ -80,9 +151,12 @@ class Main(star.Star):
     async def initialize(self) -> None:
         if self._init_done:
             return
+        self._resolve_data_dir()
+        self._load_or_create_personas()
+        self._load_or_create_trigger_map()
+        self._preload_kernels()
         if self.config.get("auto_create_personas", True):
             await self._ensure_personas_in_db()
-        self._preload_kernels()
         self._init_done = True
 
     async def terminate(self) -> None:
@@ -91,15 +165,62 @@ class Main(star.Star):
         self._switch_state.clear()
         self._kernel_cache.clear()
 
+    # ── 持久化数据目录 ──────────────────────────────────
+
+    def _resolve_data_dir(self):
+        cfg_dir = self.config.get("personas_data_dir", "").strip()
+        if cfg_dir:
+            self._data_dir = cfg_dir
+        else:
+            config_dir = os.path.dirname(getattr(self.config, "_config_path", ""))
+            if not config_dir:
+                config_dir = os.path.join("data", "config")
+            self._data_dir = os.path.join(
+                os.path.dirname(config_dir),
+                "astrbot_plugin_multipersona",
+            )
+        os.makedirs(self._data_dir, exist_ok=True)
+
+    def _personas_dir(self) -> str:
+        d = os.path.join(self._data_dir, "personas")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    # ── 人格数据文件 ────────────────────────────────────
+
+    def _load_or_create_personas(self):
+        pdir = self._personas_dir()
+        for pid, default in DEFAULT_PERSONAS.items():
+            fpath = os.path.join(pdir, f"{pid}.json")
+            if os.path.exists(fpath):
+                self._personas[pid] = _read_json(fpath)
+            else:
+                _write_json(fpath, default)
+                self._personas[pid] = dict(default)
+
+    def _load_or_create_trigger_map(self):
+        fpath = os.path.join(self._data_dir, "trigger_map.json")
+        if os.path.exists(fpath):
+            data = _read_json(fpath)
+            self._trigger_map = data.get("trigger_map", DEFAULT_TRIGGER_MAP)
+            self._user_consent_phrases = data.get(
+                "user_consent_phrases", DEFAULT_USER_CONSENT_PHRASES,
+            )
+        else:
+            data = {
+                "trigger_map": DEFAULT_TRIGGER_MAP,
+                "user_consent_phrases": DEFAULT_USER_CONSENT_PHRASES,
+            }
+            _write_json(fpath, data)
+            self._trigger_map = DEFAULT_TRIGGER_MAP
+            self._user_consent_phrases = DEFAULT_USER_CONSENT_PHRASES
+
     # ── Persona 数据库初始化 ─────────────────────────────
 
     async def _ensure_personas_in_db(self):
         pm = self.context.persona_manager
         db = self.context.get_db()
-        for pdef in self.config.get("personas", []):
-            pid = pdef.get("persona_id")
-            if not pid:
-                continue
+        for pid, pdef in self._personas.items():
             existing = await db.get_persona_by_id(pid)
             if existing:
                 continue
@@ -116,7 +237,7 @@ class Main(star.Star):
 
     def _preload_kernels(self):
         skills_dir = os.path.join(os.path.dirname(__file__), "skills")
-        for pdef in self.config.get("personas", []):
+        for pid, pdef in self._personas.items():
             core = pdef.get("core_skill_name")
             if not core:
                 continue
@@ -129,7 +250,7 @@ class Main(star.Star):
                     pass
 
     def _load_kernel(self, persona_id: str) -> str:
-        pdef = self._find_persona(persona_id)
+        pdef = self._personas.get(persona_id)
         if not pdef:
             return ""
         core = pdef.get("core_skill_name", "")
@@ -139,12 +260,12 @@ class Main(star.Star):
 
     @filter.on_llm_request()
     async def inject_persona_kernel(self, event, req):
-        pid = await self._resolve_current_persona_id(event)
+        pid = await self._resolve_current_pid(event)
         kernel = self._load_kernel(pid)
         if kernel:
             req.system_prompt = kernel + "\n\n" + req.system_prompt
 
-    # ── 消息拦截：切换请求 / 用户确认 / 空闲检测 ─────────
+    # ── 消息拦截 ────────────────────────────────────────
 
     @filter.regex(
         r"(?i)(让.*[Qq观].*来|叫.*[Qq观]|切.*[Qq观]|"
@@ -156,21 +277,18 @@ class Main(star.Star):
         msg = event.get_message_str().strip()
         umo = event.unified_msg_origin
 
-        # 1. 空闲超时 → 随机唤醒
+        # 1. 空闲超时
         await self._check_idle_timeout(umo, event)
 
         # 2. AWAITING_USER_CONSENT → 检查用户同意
         st = self._switch_state.get(umo)
         if st and st["state"] == AWAITING_USER_CONSENT:
             elapsed = time.time() - st.get("timestamp", 0)
-            timeout_secs = self.config.get("consent_timeout_rounds", 3) * 60
-            if elapsed > timeout_secs:
+            timeout = self.config.get("consent_timeout_rounds", 3) * 60
+            if elapsed > timeout:
                 self._switch_state.pop(umo, None)
             elif self._is_user_consent(msg):
-                await self._execute_switch(
-                    umo, st["target_pid"], event,
-                    trigger_msg=msg,
-                )
+                await self._execute_switch(umo, st["target_pid"], event)
                 self._switch_state.pop(umo, None)
                 if self.config.get("stop_event_after_switch", True):
                     event.stop_event()
@@ -179,9 +297,8 @@ class Main(star.Star):
                 self._switch_state.pop(umo, None)
                 return
 
-        # 3. AWAITING_PERSONA_CONSENT → 新的请求重置计时
+        # 3. AWAITING_PERSONA_CONSENT — 新请求不重置
         if st and st["state"] == AWAITING_PERSONA_CONSENT:
-            st["timestamp"] = time.time()
             return
 
         # 4. IDLE → 匹配触发词
@@ -189,15 +306,14 @@ class Main(star.Star):
         if not target_pid:
             return
 
-        current_pid = await self._resolve_current_persona_id(event)
+        current_pid = await self._resolve_current_pid(event)
         if current_pid == target_pid:
-            pdef = self._find_persona(target_pid) or {}
+            pdef = self._personas.get(target_pid, {})
             nm = pdef.get("display_name", target_pid)
             event.set_result(MessageEventResult().message(f"已经是 {nm} 了。"))
             event.stop_event()
             return
 
-        # 进入 AWAITING_PERSONA_CONSENT 状态
         self._switch_state[umo] = {
             "state": AWAITING_PERSONA_CONSENT,
             "target_pid": target_pid,
@@ -205,15 +321,23 @@ class Main(star.Star):
             "timestamp": time.time(),
             "rounds": 0,
         }
-        # 不 stop_event —— 让消息传给当前人格，由其决定是否同意
 
-    # ── LLM 回复检测：人格同意 / 人格建议 ─────────────────
+    # ── LLM 回复检测 ────────────────────────────────────
 
     @filter.on_llm_response()
     async def on_response(self, event, response):
         umo = event.unified_msg_origin
         st = self._switch_state.get(umo)
         if not st:
+            result = self._check_persona_suggest(
+                _extract_response_text(response), umo,
+            )
+            if result:
+                self._switch_state[umo] = {
+                    "state": AWAITING_USER_CONSENT,
+                    "target_pid": result,
+                    "timestamp": time.time(),
+                }
             return
 
         response_text = _extract_response_text(response)
@@ -222,77 +346,43 @@ class Main(star.Star):
 
         if st["state"] == AWAITING_PERSONA_CONSENT:
             if self._check_persona_consent(
-                response_text,
-                st.get("trigger_pid", ""),
-                st["target_pid"],
+                response_text, st.get("trigger_pid", ""), st["target_pid"],
             ):
-                await self._execute_switch(
-                    umo, st["target_pid"], event,
-                    response_text=response_text,
-                )
+                await self._execute_switch(umo, st["target_pid"], event)
                 self._switch_state.pop(umo, None)
                 return
             st["rounds"] = st.get("rounds", 0) + 1
             if st["rounds"] >= self.config.get("consent_timeout_rounds", 3):
                 self._switch_state.pop(umo, None)
-            return
-
-        if st["state"] == IDLE or st is None:
-            # 检测人格是否主动提议切换
-            result = self._check_persona_suggest(response_text, umo)
-            if result:
-                self._switch_state[umo] = {
-                    "state": AWAITING_USER_CONSENT,
-                    "target_pid": result,
-                    "timestamp": time.time(),
-                }
 
     # ── 切换执行 ────────────────────────────────────────
 
-    async def _execute_switch(
-        self, umo: str, target_pid: str, event,
-        trigger_msg: str = "",
-        response_text: str = "",
-    ):
-        # 持久化当前会话
-        old_pid = await self._resolve_current_persona_id(event)
+    async def _execute_switch(self, umo: str, target_pid: str, event):
+        old_pid = await self._resolve_current_pid(event)
         if old_pid:
             old_cid = await self.context.conversation_manager.get_curr_conversation_id(umo)
             if old_cid:
-                m = self._conv_map.setdefault(umo, {})
-                m[old_pid] = old_cid
+                self._conv_map.setdefault(umo, {})[old_pid] = old_cid
 
-        # 加载/创建目标人格会话
         m = self._conv_map.setdefault(umo, {})
         if target_pid in m:
-            target_cid = m[target_pid]
-            # TODO: AstrBot 需要支持 by-id 切换 conversation
-            # 目前通过更新当前 conversation 的 persona_id 实现
             await self.context.conversation_manager.update_conversation_persona_id(
                 umo, target_pid,
             )
         else:
             plat_id = event.get_platform_name() or event.get_platform_id()
-            target_cid = await self.context.conversation_manager.new_conversation(
+            cid = await self.context.conversation_manager.new_conversation(
                 umo, plat_id or "", persona_id=target_pid,
             )
-            m[target_pid] = target_cid
+            m[target_pid] = cid
             await self.context.conversation_manager.update_conversation_persona_id(
                 umo, target_pid,
             )
 
-        # 过渡文字
-        pdef = self._find_persona(target_pid) or {}
+        pdef = self._personas.get(target_pid, {})
         trans = pdef.get("transition_in", "")
         display = pdef.get("display_name", target_pid)
-
-        result_msg = f"已切换至 {display}。"
-        if trans:
-            result_msg = f"{trans}\n{result_msg}"
-
-        if trigger_msg and response_text:
-            pass  # 人格已回复，不再阻拦
-
+        result_msg = trans + f"\n已切换至 {display}。" if trans else f"已切换至 {display}。"
         event.set_result(MessageEventResult().message(result_msg))
         self._last_active[umo] = (target_pid, time.time())
 
@@ -302,7 +392,6 @@ class Main(star.Star):
         timeout_min = self.config.get("idle_timeout_minutes", 30)
         if timeout_min <= 0:
             return
-
         now = time.time()
         last = self._last_active.get(umo)
         if last:
@@ -311,14 +400,11 @@ class Main(star.Star):
                 self._last_active[umo] = (last[0], now)
                 return
 
-        # 超时 → 权重随机
-        rolls = []
-        for pdef in self.config.get("personas", []):
-            pid = pdef.get("persona_id", "")
-            w = pdef.get("weight", 0)
-            if w > 0 and pid:
-                rolls.append((pid, w))
-
+        rolls = [
+            (pid, pdef.get("weight", 0))
+            for pid, pdef in self._personas.items()
+            if pdef.get("weight", 0) > 0
+        ]
         if not rolls:
             self._last_active[umo] = ("xiaoye", now)
             return
@@ -333,7 +419,7 @@ class Main(star.Star):
                 chosen = pid
                 break
 
-        current_pid = await self._resolve_current_persona_id(event)
+        current_pid = await self._resolve_current_pid(event)
         if current_pid and current_pid == chosen:
             self._last_active[umo] = (chosen, now)
             return
@@ -344,26 +430,22 @@ class Main(star.Star):
     # ── 检测函数 ────────────────────────────────────────
 
     def _match_trigger(self, msg: str) -> str | None:
-        for rule in self.config.get("trigger_map", []):
+        for rule in self._trigger_map:
             pattern = rule.get("regex", "")
             if pattern and re.search(pattern, msg):
                 return rule.get("persona_id")
         return None
 
     def _is_user_consent(self, msg: str) -> bool:
-        phrases = self.config.get("user_consent_phrases", [])
-        for ph in phrases:
+        for ph in self._user_consent_phrases:
             if ph in msg:
                 return True
         return self._match_trigger(msg) is not None
 
-    def _check_persona_consent(
-        self, text: str, current_pid: str, target_pid: str,
-    ) -> bool:
-        pdef = self._find_persona(current_pid) or {}
-        phrases = pdef.get("consent_phrases", [])
-        # 同时检查目标人格的 consent_phrases（双向）
-        tpdef = self._find_persona(target_pid) or {}
+    def _check_persona_consent(self, text: str, current_pid: str, target_pid: str) -> bool:
+        pdef = self._personas.get(current_pid, {})
+        phrases = list(pdef.get("consent_phrases", []))
+        tpdef = self._personas.get(target_pid, {})
         phrases.extend(tpdef.get("consent_phrases", []))
         for ph in phrases:
             if ph in text:
@@ -374,9 +456,8 @@ class Main(star.Star):
         current_pid = self._last_active.get(umo, ("", 0))[0]
         if not current_pid:
             return None
-        pdef = self._find_persona(current_pid) or {}
-        phrases = pdef.get("suggest_phrases", [])
-        for ph in phrases:
+        pdef = self._personas.get(current_pid, {})
+        for ph in pdef.get("suggest_phrases", []):
             if ph in text:
                 if "Q" in ph:
                     return "q_tech"
@@ -388,16 +469,10 @@ class Main(star.Star):
 
     # ── 辅助函数 ────────────────────────────────────────
 
-    async def _resolve_current_persona_id(self, event) -> str:
+    async def _resolve_current_pid(self, event) -> str:
         umo = event.unified_msg_origin
         cid = await self.context.conversation_manager.get_curr_conversation_id(umo)
         if not cid:
-            return self.config.get("default_persona_id", "xiaoye")
+            return "xiaoye"
         conv = await self.context.conversation_manager.get_conversation(umo, cid)
-        return (conv and conv.persona_id) or self.config.get("default_persona_id", "xiaoye")
-
-    def _find_persona(self, persona_id: str) -> dict | None:
-        for p in self.config.get("personas", []):
-            if p.get("persona_id") == persona_id:
-                return p
-        return None
+        return (conv and conv.persona_id) or "xiaoye"
