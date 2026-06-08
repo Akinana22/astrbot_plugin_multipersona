@@ -2,24 +2,20 @@
   "display_name": "AI Multi-Persona Switch",
   "desc": "Three personas (Xiaoye/Q/Guan) coexisting in one consciousness. Independent memory spaces, dual-phase consent switching, weighted idle-time random awakening.",
   "short_desc": "AI Multi-Persona Switch",
-  "personas_data_dir": {
-    "description": "Persona data persistence directory",
-    "hint": "Stores individual persona JSON files and trigger_map.json. Leave empty for auto-location in AstrBot data directory."
-  },
   "idle_timeout_minutes": {
-    "description": "Idle timeout (minutes)",
+    "description": "Idle Timeout",
     "hint": "After timeout, randomly awakens a persona based on weight. Set to 0 to disable."
   },
   "consent_timeout_rounds": {
-    "description": "Max consent waiting rounds",
+    "description": "Consent Rounds",
     "hint": "Maximum conversation rounds waiting for persona/user consent. Timeout cancels the switch."
   },
   "auto_create_personas": {
-    "description": "Auto-create Personas",
+    "description": "Auto Create",
     "hint": "Automatically write persona data to AstrBot Persona DB on plugin initialization."
   },
   "stop_event_after_switch": {
-    "description": "Stop trigger message after switch",
-    "hint": "The message that triggered the switch (e.g. 'let Q handle this') will not be forwarded to the new persona."
+    "description": "Stop Forward",
+    "hint": "The message that triggered the switch will not be forwarded to the new persona."
   }
 }

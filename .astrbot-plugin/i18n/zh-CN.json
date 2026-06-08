@@ -2,24 +2,20 @@
   "display_name": "AI 多重人格切换",
   "desc": "三人格(小叶/Q/观)共生切换插件。独立记忆空间，双阶段确认切换，空闲超时权重随机唤醒。",
   "short_desc": "AI 多重人格切换",
-  "personas_data_dir": {
-    "description": "人格数据持久化目录",
-    "hint": "该目录下存放每个人格的独立 JSON 文件，以及 trigger_map.json。留空将自动定位到 AstrBot 数据目录。"
-  },
   "idle_timeout_minutes": {
-    "description": "空闲超时（分钟）",
-    "hint": "超时后按 personas 中的 weight 随机选择唤醒人格。设为 0 禁用。"
+    "description": "空闲超时",
+    "hint": "超时后按权重随机唤醒人格。设为 0 则禁用。"
   },
   "consent_timeout_rounds": {
-    "description": "等待确认的最大轮数",
+    "description": "确认超时",
     "hint": "等待人格/用户确认的最大对话轮数。超时取消切换。"
   },
   "auto_create_personas": {
-    "description": "自动创建 Persona",
+    "description": "自动创建人格",
     "hint": "插件初始化时自动将人格数据写入 AstrBot Persona 数据库。"
   },
   "stop_event_after_switch": {
-    "description": "切换后阻止触发消息传给 LLM",
-    "hint": "指触发切换的那条消息。如用户说'让Q来'，切换后该消息不再传给目标人格。"
+    "description": "阻止转发",
+    "hint": "切换成功后阻止触发切换的用户消息继续传给 LLM。"
   }
 }

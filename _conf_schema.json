@@ -1,30 +1,26 @@
 {
-  "personas_data_dir": {
-    "type": "string",
-    "description": "人格数据持久化目录。留空则自动使用 data/astrbot_plugin_multipersona/",
-    "hint": "该目录下存放每个人格的独立 JSON 文件，以及 trigger_map.json。留空将自动定位到 AstrBot 数据目录。",
-    "default": ""
-  },
   "idle_timeout_minutes": {
     "type": "int",
-    "description": "空闲超时（分钟）。超时后按权重随机唤醒人格。设为 0 则禁用空闲切换。",
-    "hint": "每接受到一条消息时检查距离上次活跃的时间。若超过此值，按 personas 中的 weight 随机选择唤醒人格。",
+    "description": "空闲超时",
+    "hint": "超时后按权重随机唤醒人格。设为 0 则禁用空闲切换。",
     "default": 30
   },
   "consent_timeout_rounds": {
     "type": "int",
-    "description": "等待人格/用户确认的最大对话轮数。超时取消切换。",
+    "description": "确认超时",
+    "hint": "等待人格/用户确认的最大对话轮数。超时取消切换。",
     "default": 3
   },
   "auto_create_personas": {
     "type": "bool",
-    "description": "插件初始化时自动将人格数据写入 AstrBot Persona 数据库",
+    "description": "自动创建人格",
+    "hint": "插件初始化时自动将人格数据写入 AstrBot Persona 数据库",
     "default": true
   },
   "stop_event_after_switch": {
     "type": "bool",
-    "description": "切换成功后是否阻止触发切换的那条用户消息继续传给 LLM",
-    "hint": "指触发切换的那条消息。例如：用户说'让Q来'，匹配触发词，小叶回应并确认后执行切换。若开启（默认），该条'让Q来'不再传给 Q。",
+    "description": "阻止转发",
+    "hint": "切换成功后阻止触发切换的用户消息继续传给 LLM",
     "default": true
   }
 }

@@ -168,23 +168,15 @@ class Main(star.Star):
     # ── 持久化数据目录 ──────────────────────────────────
 
     def _resolve_data_dir(self):
-        cfg_dir = self.config.get("personas_data_dir", "").strip()
-        if cfg_dir:
-            self._data_dir = cfg_dir
+        cfg_path = getattr(self.config, "_config_path", None)
+        if cfg_path and os.path.isfile(cfg_path):
+            config_dir = os.path.dirname(cfg_path)
         else:
-            cfg_path = (
-                getattr(self.config, "_config_path", None)
-                if hasattr(self.config, "_config_path")
-                else None
-            )
-            if cfg_path and os.path.isfile(cfg_path):
-                config_dir = os.path.dirname(cfg_path)
-            else:
-                config_dir = os.path.join("data", "config")
-            self._data_dir = os.path.join(
-                os.path.dirname(config_dir) or "data",
-                "astrbot_plugin_multipersona",
-            )
+            config_dir = os.path.join("data", "config")
+        self._data_dir = os.path.join(
+            os.path.dirname(config_dir) or "data",
+            "astrbot_plugin_multipersona",
+        )
         os.makedirs(self._data_dir, exist_ok=True)
 
     def _personas_dir(self) -> str:

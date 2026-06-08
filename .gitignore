@@ -224,4 +224,5 @@ __marimo__/
 # Reference / artifacts (not part of plugin)
 AstrBot-master/
 astrbot_plugin_llmallowlist/
+astrbot_plugin_multipersona/
 *.zip
