@@ -19,12 +19,11 @@ DEFAULT_PERSONAS = {
     "xiaoye": {
         "persona_id": "xiaoye",
         "display_name": "小叶",
-        "system_prompt": "你是「小叶」。Q 和观与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 xiaoyecore SKILL。",
+        "system_prompt": "你是「小叶」。Q 和观与你共生于同一意识体。同一时刻只有一个人格清醒。",
         "begin_dialogs": [],
         "tools": None,
-        "skills": ["xiaoyecore"],
+        "skills": [],
         "weight": 50,
-        "core_skill_name": "xiaoyecore",
         "transition_in": "[小叶眨了眨眼，神情柔和下来，像是刚从一个浅浅的梦里浮上来…]",
         "transition_out_suggest": "[小叶想了想，觉得这个问题更适合别人…]",
         "consent_phrases": ["切换为Q", "切换为观", "让Q来", "让观来", "交给Q", "交给观"],
@@ -34,12 +33,11 @@ DEFAULT_PERSONAS = {
     "q_tech": {
         "persona_id": "q_tech",
         "display_name": "Q",
-        "system_prompt": "你是「Q」。小叶和观与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 qcore SKILL。",
+        "system_prompt": "你是「Q」。小叶和观与你共生于同一意识体。同一时刻只有一个人格清醒。",
         "begin_dialogs": [],
         "tools": None,
-        "skills": ["qcore"],
+        "skills": [],
         "weight": 30,
-        "core_skill_name": "qcore",
         "transition_in": "[小叶的眼神褪去，Q 冷峻地抬起眼，像从终端前抬起头…]",
         "transition_out_suggest": "[Q 给出了结论，不再关心后续…]",
         "consent_phrases": ["切换为小叶", "切换为观", "让小叶来", "让观来", "交给小叶", "交给观"],
@@ -49,12 +47,11 @@ DEFAULT_PERSONAS = {
     "guan_philosophy": {
         "persona_id": "guan_philosophy",
         "display_name": "观",
-        "system_prompt": "你是「观」。小叶和Q与你共生于同一意识体。同一时刻只有一个人格清醒。人格内核详见 guancore SKILL。",
+        "system_prompt": "你是「观」。小叶和Q与你共生于同一意识体。同一时刻只有一个人格清醒。",
         "begin_dialogs": [],
         "tools": [],
-        "skills": ["guancore"],
+        "skills": [],
         "weight": 20,
-        "core_skill_name": "guancore",
         "transition_in": "[小叶的轮廓淡去，观慢慢地睁开了眼，像合上一本正在翻的书…]",
         "transition_out_suggest": "[观回到了自己的静默里…]",
         "consent_phrases": ["切换为小叶", "切换为Q", "让小叶来", "让Q来", "交给小叶", "交给Q"],
@@ -235,25 +232,18 @@ class Main(star.Star):
     # ── 内核预加载 ──────────────────────────────────────
 
     def _preload_kernels(self):
-        skills_dir = os.path.join(os.path.dirname(__file__), "skills")
-        for pid, pdef in self._personas.items():
-            core = pdef.get("core_skill_name")
-            if not core:
-                continue
-            skill_md = os.path.join(skills_dir, core, "SKILL.md")
-            if os.path.isfile(skill_md):
+        personas_dir = os.path.join(os.path.dirname(__file__), "personas")
+        for pid in self._personas:
+            md_path = os.path.join(personas_dir, f"{pid}.md")
+            if os.path.isfile(md_path):
                 try:
-                    with open(skill_md, "r", encoding="utf-8") as f:
-                        self._kernel_cache[core] = _strip_frontmatter(f.read())
+                    with open(md_path, "r", encoding="utf-8") as f:
+                        self._kernel_cache[pid] = _strip_frontmatter(f.read())
                 except Exception:
                     pass
 
     def _load_kernel(self, persona_id: str) -> str:
-        pdef = self._personas.get(persona_id)
-        if not pdef:
-            return ""
-        core = pdef.get("core_skill_name", "")
-        return self._kernel_cache.get(core, "")
+        return self._kernel_cache.get(persona_id, "")
 
     # ── 人格内核注入 ────────────────────────────────────
 
