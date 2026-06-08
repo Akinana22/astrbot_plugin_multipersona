@@ -123,9 +123,9 @@ class Main(star.Star):
     人格内核注入 via @on_llm_request，永不稀释。
     """
 
-    def __init__(self, context: star.Context, config: AstrBotConfig) -> None:
+    def __init__(self, context: star.Context, config: AstrBotConfig | None = None) -> None:
         super().__init__(context)
-        self.config = config
+        self.config = config or {}
         self._init_done = False
 
         # 持久化数据
