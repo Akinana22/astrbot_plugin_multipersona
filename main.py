@@ -152,11 +152,13 @@ class Main(star.Star):
         self._load_or_create_personas()
         self._load_or_create_trigger_map()
         self._preload_kernels()
+        self._restore_session()
         if self.config.get("auto_create_personas", True):
             await self._ensure_personas_in_db()
         self._init_done = True
 
     async def terminate(self) -> None:
+        self._save_session()
         self._conv_map.clear()
         self._last_active.clear()
         self._switch_state.clear()
@@ -181,6 +183,43 @@ class Main(star.Star):
         d = os.path.join(self._data_dir, "personas")
         os.makedirs(d, exist_ok=True)
         return d
+
+    # ── 会话持久化 ──────────────────────────────────────
+
+    def _data_file(self, name: str) -> str:
+        return os.path.join(self._data_dir, name)
+
+    def _load_json_file(self, name: str, default):
+        path = self._data_file(name)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                return default
+        return default
+
+    def _save_json_file(self, name: str, data):
+        path = self._data_file(name)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, path)
+
+    def _restore_session(self):
+        self._conv_map = self._load_json_file("conv_map.json", {})
+        raw = self._load_json_file("last_active.json", {})
+        self._last_active = {}
+        for umo, v in raw.items():
+            if isinstance(v, list) and len(v) == 2:
+                self._last_active[umo] = (v[0], v[1])
+
+    def _save_session(self):
+        self._save_json_file("conv_map.json", self._conv_map)
+        out = {}
+        for umo, (pid, ts) in self._last_active.items():
+            out[umo] = [pid, ts]
+        self._save_json_file("last_active.json", out)
 
     # ── 人格数据文件 ────────────────────────────────────
 
@@ -374,6 +413,7 @@ class Main(star.Star):
         result_msg = trans + f"\n已切换至 {display}。" if trans else f"已切换至 {display}。"
         event.set_result(MessageEventResult().message(result_msg))
         self._last_active[umo] = (target_pid, time.time())
+        self._save_session()
 
     # ── 空闲超时 ────────────────────────────────────────
 
@@ -396,6 +436,7 @@ class Main(star.Star):
         ]
         if not rolls:
             self._last_active[umo] = ("xiaoye", now)
+            self._save_session()
             return
 
         total = sum(w for _, w in rolls)
@@ -411,10 +452,10 @@ class Main(star.Star):
         current_pid = await self._resolve_current_pid(event)
         if current_pid and current_pid == chosen:
             self._last_active[umo] = (chosen, now)
+            self._save_session()
             return
 
         await self._execute_switch(umo, chosen, event)
-        self._last_active[umo] = (chosen, now)
 
     # ── 检测函数 ────────────────────────────────────────
 
