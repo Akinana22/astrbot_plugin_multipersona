@@ -4,7 +4,7 @@ import random
 import re
 import time
 
-from astrbot.api import star
+from astrbot.api import AstrBotConfig, star
 from astrbot.api.event import AstrMessageEvent, filter, MessageEventResult
 
 # ── 状态机常量 ─────────────────────────────────────────
@@ -58,7 +58,7 @@ class Main(star.Star):
     - 空闲超时按权重随机唤醒
     """
 
-    def __init__(self, context: star.Context, config: star.StarConfig) -> None:
+    def __init__(self, context: star.Context, config: AstrBotConfig) -> None:
         super().__init__(context)
         self.config = config
         self._init_done = False
