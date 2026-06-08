@@ -175,6 +175,7 @@ class Main(star.Star):
             config_dir = os.path.join("data", "config")
         self._data_dir = os.path.join(
             os.path.dirname(config_dir) or "data",
+            "plugin_data",
             "astrbot_plugin_multipersona",
         )
         os.makedirs(self._data_dir, exist_ok=True)

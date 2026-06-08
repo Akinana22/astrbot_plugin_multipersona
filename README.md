@@ -37,7 +37,6 @@
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `personas_data_dir` | string | `""` | 人格持久化数据目录。留空则自动使用 `data/astrbot_plugin_multipersona/` |
 | `idle_timeout_minutes` | int | `30` | 空闲超时（分钟）。设为 `0` 禁用 |
 | `consent_timeout_rounds` | int | `3` | 等待人格/用户确认的最大对话轮数 |
 | `auto_create_personas` | bool | `true` | 启动时自动写入 AstrBot Persona 数据库 |
@@ -54,7 +53,7 @@
 每个人格的 `weight` 存储在独立的持久化文件中：
 
 ```
-data/astrbot_plugin_multipersona/personas/<persona_id>.json
+data/plugin_data/astrbot_plugin_multipersona/personas/<persona_id>.json
 ```
 
 | 人格 | persona_id | 默认权重 | 空闲唤醒概率 |
@@ -133,7 +132,7 @@ skills/
 插件运行时数据存放在 AstrBot 数据目录下：
 
 ```
-data/astrbot_plugin_multipersona/
+data/plugin_data/astrbot_plugin_multipersona/
 ├── personas/
 │   ├── xiaoye.json              ← 小叶完整定义
 │   ├── q_tech.json              ← Q 完整定义

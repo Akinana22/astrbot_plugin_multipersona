@@ -37,7 +37,6 @@ After installation, configuration is stored at `data/config/astrbot_plugin_multi
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `personas_data_dir` | string | `""` | Persona data directory. Leave empty for auto `data/astrbot_plugin_multipersona/` |
 | `idle_timeout_minutes` | int | `30` | Idle timeout in minutes. Set `0` to disable |
 | `consent_timeout_rounds` | int | `3` | Max rounds waiting for consent before cancelling |
 | `auto_create_personas` | bool | `true` | Auto-write personas to AstrBot DB on startup |
@@ -54,7 +53,7 @@ After installation, configuration is stored at `data/config/astrbot_plugin_multi
 Each persona's `weight` is stored in individual persistent files:
 
 ```
-data/astrbot_plugin_multipersona/personas/<persona_id>.json
+data/plugin_data/astrbot_plugin_multipersona/personas/<persona_id>.json
 ```
 
 | Persona | persona_id | Default Weight | Awakening Probability |
@@ -132,7 +131,7 @@ Persona: "...Q would handle this better."
 Runtime data is stored under the AstrBot data directory:
 
 ```
-data/astrbot_plugin_multipersona/
+data/plugin_data/astrbot_plugin_multipersona/
 ├── personas/
 │   ├── xiaoye.json              ← Xiaoye full definition
 │   ├── q_tech.json              ← Q full definition
