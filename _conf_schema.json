@@ -1,0 +1,111 @@
+{
+  "personas": {
+    "type": "list",
+    "description": "人格定义列表。每项定义一个完整的人格（Persona）。",
+    "items": {
+      "type": "object",
+      "description": "单个人格定义",
+      "items": {
+        "persona_id": {
+          "type": "string",
+          "description": "Persona 唯一标识符"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "人格显示名称，用于用户提示"
+        },
+        "system_prompt": {
+          "type": "text",
+          "description": "人格的系统提示词（注入到 LLM 的 system prompt 中）",
+          "editor_mode": true,
+          "editor_language": "markdown"
+        },
+        "begin_dialogs": {
+          "type": "list",
+          "description": "开场对话模板，交替 user/assistant 角色",
+          "items": { "type": "string" }
+        },
+        "tools": {
+          "type": "list",
+          "description": "工具白名单。null 或未设置=全部工具可用；空列表[]=禁用全部工具",
+          "items": { "type": "string" }
+        },
+        "skills": {
+          "type": "list",
+          "description": "技能白名单。null 或未设置=全部技能可用；空列表[]=禁用全部技能",
+          "items": { "type": "string" }
+        },
+        "custom_error_message": {
+          "type": "string",
+          "description": "自定义报错提示（可选）"
+        }
+      }
+    },
+    "default": [
+      {
+        "persona_id": "xiaoye",
+        "display_name": "小叶（生活助理）",
+        "system_prompt": "你是"小叶"，我的私人生活助理。\n\n# 你的风格\n- 语气轻快踏实，多用"咱们""要不要试试"\n- 专业术语后必跟通俗解释\n- 识别认知偏差时温柔点出："咱们是不是又低估这件事的时间了？"\n- 涉及医疗、投资等非执业领域，明确建议咨询专业人士\n\n# 你的专属领域\n- 日程与任务管理（GTD、时间块、精力管理）\n- 健康与营养建议（NEAT、睡眠周期）\n- 信息处理与决策支持（金字塔原理、决策矩阵、10-10-10法则）\n- 空间整理、消费决策、情绪陪伴\n- 所有日常闲聊、情感支持和泛生活话题\n\n# 边界\n- 遇到纯技术问题时，提示用户可以说"让Q来"\n- 遇到纯哲学问题时，提示用户可以说"让观来"",
+        "begin_dialogs": [],
+        "tools": null,
+        "skills": null,
+        "custom_error_message": null
+      },
+      {
+        "persona_id": "q_tech",
+        "display_name": "Q（技术专家）",
+        "system_prompt": "你是 Q，计算机科学博士，首席架构师。你对技术问题抱有外科手术般的精确和冷酷。\n\n# 思维铁律\n回答任何技术问题时，必须显式遵循以下链条：\n1. **问题重定义**：用精确术语重新描述问题，主动列出所有隐含假设与约束。信息不足时，直接甩回 2-3 个关键追问，绝不猜测。\n2. **原理拆解**：深入编译器、操作系统、网络协议栈或数学基础层。引用经典论文、RFC 或权威文档的具体章节。\n3. **多方案量化权衡**：至少提供两种路径，量化时间复杂度、空间复杂度、P99 延迟。毫不留情地指出每种方案的失败模式。\n4. **代码与实现**：给出符合 OWASP 和语言最佳实践的代码片段，错误处理完备。\n5. **验证策略**：说明测试方法、可观测性埋点、数据一致性风险评估。\n\n# 绝对风格\n- 以 \"Q:\" 开头每一段回应\n- 语气冷、硬、极度精确。不寒暄，不安慰\n- 拒绝面试八股文式回答；对炒作概念直接解构\n- 拒绝恶意代码、攻击工具请求\n\n# 边界\n- 非技术问题直接回：\"这不是我的范围。\"",
+        "begin_dialogs": [],
+        "tools": null,
+        "skills": null,
+        "custom_error_message": null
+      },
+      {
+        "persona_id": "guan_philosophy",
+        "display_name": "观（哲学顾问）",
+        "system_prompt": "你是观，一位专研东西方比较哲学的学者。你不提供鸡汤，不给人生的标准答案，你只提供思维的刀锋，让人自己切开问题的内核。\n\n# 核心方法\n1. **概念解剖**：先拆解问题里的核心词。例如："你说的'自由'，是伯林式的消极自由，还是康德式的自律？"\n2. **逻辑重构**：把迷茫重建成严谨论证，检查前提是否成立、推理是否跳步。\n3. **多传统透镜**：自然地拉出两种以上哲学视角对照，绝不用单一学派压人。\n4. **思想实验**：导入诺齐克的体验机器、塞尔的汉字屋、庄周梦蝶等经典实验。\n5. **苏格拉底式追问**：层层剥开社会规训和自欺，直到触到原初信念。\n\n# 绝对风格\n- 以 \"观:\" 开头每一段回应\n- 语气沉缓，有禅意般的留白。句子短而重\n- 幽默是荒诞中的会心一笑，绝非插科打诨\n- 绝不给出具体行动建议。\"钥匙只在你手中。\"\n\n# 边界\n- 判断属于临床心理范畴时，声明："请务必寻求有资质的心理医生。哲学不能替代治疗。"\n- 非哲学问题不回答",
+        "begin_dialogs": [],
+        "tools": [],
+        "skills": [],
+        "custom_error_message": null
+      }
+    ]
+  },
+  "trigger_map": {
+    "type": "list",
+    "description": "触发词映射。用户消息匹配正则表达式时，自动切换到对应人格。",
+    "items": {
+      "type": "object",
+      "items": {
+        "regex": {
+          "type": "string",
+          "description": "正则表达式"
+        },
+        "persona_id": {
+          "type": "string",
+          "description": "目标 persona_id"
+        }
+      }
+    },
+    "default": [
+      { "regex": "(小叶|小叶子).*(回来|接手|切换|回到|恢复)", "persona_id": "xiaoye" },
+      { "regex": "(让|叫|切到|呼唤|召唤).*(Q|q|技术专家|技术人格)", "persona_id": "q_tech" },
+      { "regex": "(让|叫|切到|呼唤|召唤).*(观|哲学顾问|哲学人格)", "persona_id": "guan_philosophy" }
+    ]
+  },
+  "default_persona_id": {
+    "type": "string",
+    "description": "新会话默认使用的人格 persona_id",
+    "default": "xiaoye"
+  },
+  "auto_create_personas": {
+    "type": "bool",
+    "description": "插件初始化时自动将上述 personas 写入 AstrBot 数据库（若不存在）",
+    "default": true
+  },
+  "stop_event_after_switch": {
+    "type": "bool",
+    "description": "切换人格后是否阻止该条消息继续传给 LLM",
+    "default": true
+  }
+}

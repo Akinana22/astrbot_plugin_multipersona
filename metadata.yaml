@@ -1,0 +1,5 @@
+name: astrbot_plugin_multipersona
+desc: 多重人格切换插件。用户可通过关键词"让Q来""让观来""小叶回来"切换 LLM 人格/Persona。
+author: Akinana22
+version: 1.0.0
+repo: https://github.com/Akinana22/astrbot_plugin_multipersona
