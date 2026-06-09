@@ -6,7 +6,7 @@ import re
 import time
 
 from astrbot.api import AstrBotConfig, star
-from astrbot.api.event import AstrMessageEvent, filter, MessageEventResult
+from astrbot.api.event import AstrMessageEvent, MessageChain, filter, MessageEventResult
 
 # ── 状态机常量 ─────────────────────────────────────────
 IDLE = 0
@@ -292,6 +292,13 @@ class Main(star.Star):
         kernel = self._load_kernel(pid)
         if kernel:
             req.system_prompt = kernel + "\n\n" + req.system_prompt
+        if pid == "xiaoye":
+            req.system_prompt = (
+                "[回复规则：\n"
+                "1. 每次回复不超过 200 字。\n"
+                "2. 每句话单独一行。句号、问号、感叹号后立即换行。\n"
+                "3. 行与行之间紧挨着，不要空行。]\n\n"
+            ) + req.system_prompt
 
     # ── 消息拦截 ────────────────────────────────────────
 
@@ -382,6 +389,28 @@ class Main(star.Star):
             st["rounds"] = st.get("rounds", 0) + 1
             if st["rounds"] >= self.config.get("consent_timeout_rounds", 3):
                 self._switch_state.pop(umo, None)
+
+    # ── 小叶分段发送 ────────────────────────────────────
+
+    @filter.on_decorating_result()
+    async def on_decorating(self, event: AstrMessageEvent):
+        pid = await self._resolve_current_pid(event)
+        if pid != "xiaoye":
+            return
+        result = event.get_result()
+        if not result or not result.chain:
+            return
+        text = result.chain[0].text if result.chain else ""
+        lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+        if len(lines) <= 1:
+            return
+        result.chain[0].text = lines[0]
+        asyncio.ensure_future(self._send_segments(event, lines[1:]))
+
+    async def _send_segments(self, event, segments: list[str]):
+        for seg in segments:
+            await asyncio.sleep(0.8)
+            await event.send(MessageChain().message(seg))
 
     # ── 切换执行 ────────────────────────────────────────
 
