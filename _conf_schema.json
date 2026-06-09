@@ -22,5 +22,23 @@
     "description": "阻止转发",
     "hint": "切换成功后阻止触发切换的用户消息继续传给 LLM",
     "default": true
+  },
+  "split_send_min_delay": {
+    "type": "float",
+    "description": "最小间隔",
+    "hint": "小叶分段发送的最短延迟（秒）",
+    "default": 0.3
+  },
+  "split_send_max_delay": {
+    "type": "float",
+    "description": "最大间隔",
+    "hint": "小叶分段发送的最长延迟（秒）",
+    "default": 1.5
+  },
+  "split_send_delay_factor": {
+    "type": "float",
+    "description": "字数系数",
+    "hint": "延迟 = clamp(字数 × 系数, 最小, 最大)",
+    "default": 0.02
   }
 }

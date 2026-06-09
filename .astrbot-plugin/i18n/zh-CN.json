@@ -17,5 +17,17 @@
   "stop_event_after_switch": {
     "description": "阻止转发",
     "hint": "切换成功后阻止触发切换的用户消息继续传给 LLM。"
+  },
+  "split_send_min_delay": {
+    "description": "最小间隔",
+    "hint": "小叶分段发送的最短延迟（秒）"
+  },
+  "split_send_max_delay": {
+    "description": "最大间隔",
+    "hint": "小叶分段发送的最长延迟（秒）"
+  },
+  "split_send_delay_factor": {
+    "description": "字数系数",
+    "hint": "延迟 = clamp(字数 × 系数, 最小, 最大)"
   }
 }

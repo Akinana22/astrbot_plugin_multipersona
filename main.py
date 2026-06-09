@@ -408,8 +408,12 @@ class Main(star.Star):
         asyncio.ensure_future(self._send_segments(event, lines[1:]))
 
     async def _send_segments(self, event, segments: list[str]):
+        min_d = self.config.get("split_send_min_delay", 0.3)
+        max_d = self.config.get("split_send_max_delay", 1.5)
+        factor = self.config.get("split_send_delay_factor", 0.02)
         for seg in segments:
-            await asyncio.sleep(0.8)
+            delay = max(min_d, min(max_d, len(seg) * factor))
+            await asyncio.sleep(delay)
             await event.send(MessageChain().message(seg))
 
     # ── 切换执行 ────────────────────────────────────────
