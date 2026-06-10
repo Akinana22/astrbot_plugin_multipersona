@@ -18,6 +18,10 @@
     "description": "阻止转发",
     "hint": "切换成功后阻止触发切换的用户消息继续传给 LLM。"
   },
+  "enable_split_send": {
+    "description": "插件换行",
+    "hint": "小叶分段发送。须先关闭框架流式输出。"
+  },
   "split_send_min_delay": {
     "description": "最小间隔",
     "hint": "小叶分段发送的最短延迟（秒）"

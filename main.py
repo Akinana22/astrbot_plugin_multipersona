@@ -68,6 +68,19 @@ DEFAULT_TRIGGER_MAP = [
 
 DEFAULT_USER_CONSENT_PHRASES = ["同意", "可以", "好的", "行", "嗯", "好", "切换", "切到", "让", "换"]
 
+EMOTION_MAP = {
+    "happy":     {1: "^^",             2: "(◍•ᴗ•◍)",       3: "(*´▽`*)"},
+    "sad":       {1: "(._.)",          2: "(｡•́︿•̀｡)",      3: "(╥﹏╥)"},
+    "worried":   {1: "(･_･;",          2: "(´･ω･`)?",       3: "(ﾟДﾟ;)"},
+    "shy":       {1: "(*/ω＼*)",       2: "(⁄ ⁄•⁄ω⁄•⁄ ⁄)", 3: "(つ﹏⊂)"},
+    "tired":     {1: "(￣ω￣)",        2: "_(:з」∠)_",      3: "(∪｡∪)｡｡｡zzZ"},
+    "energetic": {1: "(•̀ᴗ•́)و",       2: "(ง •̀_•́)ง",       3: "٩(ˊᗜˋ*)و"},
+    "shocked":   {1: "(⊙_⊙)",         2: "( ﾟдﾟ )!!",      3: "Σ(ﾟДﾟ)"},
+    "think":     {1: "(｡･ω･｡)..?",    2: "(￣▽￣*)ゞ",      3: "(。-`ω-)"},
+    "warm":      {1: "(´∀｀)♡",        2: "(｡･ω･｡)ﾉ♡",     3: "(๑´>᎑<)~♡"},
+    "sigh":      {1: "(-_-)",          2: "(¬_¬)",          3: "(╬ Ò﹏Ó)"},
+}
+
 
 # ── 工具函数 ───────────────────────────────────────────
 
@@ -293,12 +306,16 @@ class Main(star.Star):
         if kernel:
             req.system_prompt = kernel + "\n\n" + req.system_prompt
         if pid == "xiaoye":
-            req.system_prompt = (
-                "[回复规则：\n"
-                "1. 每次回复不超过 200 字。\n"
-                "2. 每句话单独一行。句号、问号、感叹号后立即换行。\n"
-                "3. 行与行之间紧挨着，不要空行。]\n\n"
-            ) + req.system_prompt
+            rules = (
+                "[回复规则：每次回复不超过 100 字。不要啰嗦。]\n"
+                "[格式：禁止使用任何 Markdown 语法。不用 **粗体**、不用 # 标题、不用代码块。]"
+            )
+            if self.config.get("enable_split_send", True):
+                rules += (
+                    "\n[标点：能不打就不打。"
+                    "只有真的惊讶才用！、真的想问才用？、真的无语才用…]"
+                )
+            req.system_prompt = rules + "\n\n" + req.system_prompt
 
     # ── 消息拦截 ────────────────────────────────────────
 
@@ -397,15 +414,28 @@ class Main(star.Star):
         pid = await self._resolve_current_pid(event)
         if pid != "xiaoye":
             return
+        if not self.config.get("enable_split_send", True):
+            return
         result = event.get_result()
         if not result or not result.chain:
             return
         text = result.chain[0].text if result.chain else ""
-        lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
-        if len(lines) <= 1:
+        # 情绪标签 → 颜文字
+        text = re.sub(
+            r'\[(\w+):(\d)\]',
+            lambda m: EMOTION_MAP.get(m.group(1), {}).get(int(m.group(2)), m.group(0)),
+            text,
+        )
+        # 按句标点拆分段
+        segments = [s.strip() for s in re.split(r'(?<=[。！？…])', text) if s.strip()]
+        if len(segments) <= 1:
+            segments = [s.strip() for s in re.split(r'(?<=[，,])', text) if s.strip()]
+        if len(segments) <= 1:
+            segments = [text[i:i+15] for i in range(0, len(text), 15)]
+        if len(segments) <= 1:
             return
-        result.chain[0].text = lines[0]
-        asyncio.ensure_future(self._send_segments(event, lines[1:]))
+        result.chain[0].text = segments[0]
+        asyncio.ensure_future(self._send_segments(event, segments[1:]))
 
     async def _send_segments(self, event, segments: list[str]):
         min_d = self.config.get("split_send_min_delay", 0.3)

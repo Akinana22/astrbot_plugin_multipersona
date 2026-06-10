@@ -41,6 +41,7 @@ After installation, configuration is stored at `data/config/astrbot_plugin_multi
 | `consent_timeout_rounds` | int | `3` | Max rounds waiting for consent before cancelling |
 | `auto_create_personas` | bool | `true` | Auto-write personas to AstrBot DB on startup |
 | `stop_event_after_switch` | bool | `true` | Stop the trigger message from forwarding to LLM after switch |
+| `enable_split_send` | bool | `true` | Xiaoye split-send. Disable framework streaming first |
 | `split_send_min_delay` | float | `0.3` | Min delay between Xiaoye split segments (s) |
 | `split_send_max_delay` | float | `1.5` | Max delay between Xiaoye split segments (s) |
 | `split_send_delay_factor` | float | `0.02` | Delay = clamp(chars × factor, min, max) |
