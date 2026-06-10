@@ -23,12 +23,6 @@
     "hint": "切换成功后阻止触发切换的用户消息继续传给 LLM",
     "default": true
   },
-  "enable_split_send": {
-    "type": "bool",
-    "description": "插件换行",
-    "hint": "小叶分段发送。须先在框架设置中关闭流式输出。开启后插件接管换行，自动按句拆分延迟发送并精简标点。",
-    "default": true
-  },
   "split_send_min_delay": {
     "type": "float",
     "description": "最小间隔",

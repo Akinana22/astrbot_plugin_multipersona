@@ -41,7 +41,6 @@
 | `consent_timeout_rounds` | int | `3` | 等待人格/用户确认的最大对话轮数 |
 | `auto_create_personas` | bool | `true` | 启动时自动写入 AstrBot Persona 数据库 |
 | `stop_event_after_switch` | bool | `true` | 切换后是否阻止触发消息继续传给 LLM |
-| `enable_split_send` | bool | `true` | 小叶分段发送。须在框架设置中关闭流式输出 |
 | `split_send_min_delay` | float | `0.3` | 小叶分段发送的最短延迟（秒） |
 | `split_send_max_delay` | float | `1.5` | 小叶分段发送的最长延迟（秒） |
 | `split_send_delay_factor` | float | `0.02` | 字数系数。延迟 = clamp(字数×系数, 最小, 最大) |

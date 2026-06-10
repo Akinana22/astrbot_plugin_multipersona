@@ -18,10 +18,6 @@
     "description": "Stop Forward",
     "hint": "The message that triggered the switch will not be forwarded to the new persona."
   },
-  "enable_split_send": {
-    "description": "Split Send",
-    "hint": "Xiaoye split-send. Disable framework streaming first."
-  },
   "split_send_min_delay": {
     "description": "Min Delay",
     "hint": "Minimum delay between Xiaoye split segments (seconds)"

@@ -308,13 +308,10 @@ class Main(star.Star):
         if pid == "xiaoye":
             rules = (
                 "[回复规则：每次回复不超过 100 字。不要啰嗦。]\n"
-                "[格式：禁止使用任何 Markdown 语法。不用 **粗体**、不用 # 标题、不用代码块。]"
+                "[格式：禁止使用任何 Markdown 语法。不用 **粗体**、不用 # 标题、不用代码块。]\n"
+                "[标点：能不打就不打。"
+                "只有真的惊讶才用！、真的想问才用？、真的无语才用…]"
             )
-            if self.config.get("enable_split_send", True):
-                rules += (
-                    "\n[标点：能不打就不打。"
-                    "只有真的惊讶才用！、真的想问才用？、真的无语才用…]"
-                )
             req.system_prompt = rules + "\n\n" + req.system_prompt
 
     # ── 消息拦截 ────────────────────────────────────────
@@ -413,8 +410,6 @@ class Main(star.Star):
     async def on_decorating(self, event: AstrMessageEvent):
         pid = await self._resolve_current_pid(event)
         if pid != "xiaoye":
-            return
-        if not self.config.get("enable_split_send", True):
             return
         result = event.get_result()
         if not result or not result.chain:
