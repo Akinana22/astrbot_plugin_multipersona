@@ -153,6 +153,9 @@ class Main(star.Star):
         # umo → {state, target_pid, trigger_pid, rounds, timestamp}
         self._switch_state: dict[str, dict] = {}
 
+        # umo → bool (刚切换完毕，下次 LLM 请求注入唤醒指令)
+        self._just_switched: dict[str, bool] = {}
+
         # core_skill_name → content
         self._kernel_cache: dict[str, str] = {}
 
@@ -303,6 +306,8 @@ class Main(star.Star):
     async def inject_persona_kernel(self, event, req):
         pid = await self._resolve_current_pid(event)
         kernel = self._load_kernel(pid)
+        if self._just_switched.pop(event.unified_msg_origin, False):
+            kernel = "你刚刚醒了过来。之前是其他人格在外面说话，现在轮到你了。用你的方式打个招呼。\n\n" + (kernel or "")
         if kernel:
             req.system_prompt = kernel + "\n\n" + req.system_prompt
         if pid == "xiaoye":
@@ -444,32 +449,13 @@ class Main(star.Star):
     # ── 切换执行 ────────────────────────────────────────
 
     async def _execute_switch(self, umo: str, target_pid: str, event):
-        old_pid = await self._resolve_current_pid(event)
-        if old_pid:
-            old_cid = await self.context.conversation_manager.get_curr_conversation_id(umo)
-            if old_cid:
-                self._conv_map.setdefault(umo, {})[old_pid] = old_cid
+        plat_id = event.get_platform_name() or event.get_platform_id()
+        cid = await self.context.conversation_manager.new_conversation(
+            umo, plat_id or "", persona_id=target_pid,
+        )
+        self._conv_map.setdefault(umo, {})[target_pid] = cid
 
-        m = self._conv_map.setdefault(umo, {})
-        if target_pid in m:
-            await self.context.conversation_manager.update_conversation_persona_id(
-                umo, target_pid,
-            )
-        else:
-            plat_id = event.get_platform_name() or event.get_platform_id()
-            cid = await self.context.conversation_manager.new_conversation(
-                umo, plat_id or "", persona_id=target_pid,
-            )
-            m[target_pid] = cid
-            await self.context.conversation_manager.update_conversation_persona_id(
-                umo, target_pid,
-            )
-
-        pdef = self._personas.get(target_pid, {})
-        trans = pdef.get("transition_in", "")
-        display = pdef.get("display_name", target_pid)
-        result_msg = trans + f"\n已切换至 {display}。" if trans else f"已切换至 {display}。"
-        event.set_result(MessageEventResult().message(result_msg))
+        self._just_switched[umo] = True
         self._last_active[umo] = (target_pid, time.time())
         self._save_session()
 
