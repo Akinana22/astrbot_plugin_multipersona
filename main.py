@@ -144,9 +144,6 @@ class Main(star.Star):
         self._user_consent_phrases: list[str] = []
         self._data_dir = ""
 
-        # umo → {pid: cid}
-        self._conv_map: dict[str, dict[str, str]] = {}
-
         # umo → (pid, timestamp)
         self._last_active: dict[str, tuple[str, float]] = {}
 
@@ -175,7 +172,6 @@ class Main(star.Star):
 
     async def terminate(self) -> None:
         self._save_session()
-        self._conv_map.clear()
         self._last_active.clear()
         self._switch_state.clear()
         self._kernel_cache.clear()
@@ -223,7 +219,6 @@ class Main(star.Star):
         os.replace(tmp, path)
 
     def _restore_session(self):
-        self._conv_map = self._load_json_file("conv_map.json", {})
         raw = self._load_json_file("last_active.json", {})
         self._last_active = {}
         for umo, v in raw.items():
@@ -231,7 +226,6 @@ class Main(star.Star):
                 self._last_active[umo] = (v[0], v[1])
 
     def _save_session(self):
-        self._save_json_file("conv_map.json", self._conv_map)
         out = {}
         for umo, (pid, ts) in self._last_active.items():
             out[umo] = [pid, ts]
@@ -442,15 +436,53 @@ class Main(star.Star):
             await asyncio.sleep(delay)
             await event.send(MessageChain().message(seg))
 
+    # ── Cron 情绪标签转换 ────────────────────────────────
+
+    @filter.on_using_llm_tool()
+    async def on_tool_use(self, event, tool, tool_args):
+        if not isinstance(tool_args, dict):
+            return
+        msgs = tool_args.get("messages")
+        if not msgs:
+            return
+        for m in msgs if isinstance(msgs, list) else [msgs]:
+            if isinstance(m, dict) and "text" in m:
+                m["text"] = re.sub(
+                    r'\[(\w+):(\d)\]',
+                    lambda x: EMOTION_MAP.get(x.group(1), {}).get(int(x.group(2)), x.group(0)),
+                    m["text"],
+                )
+
     # ── 切换执行 ────────────────────────────────────────
 
     async def _execute_switch(self, umo: str, target_pid: str, event):
+        parts = umo.split(":")
+        platform = parts[0]
+        user = parts[2] if len(parts) > 2 else parts[1]
+
+        session_dir = os.path.join(self._data_dir, "sessions", platform, user)
+        os.makedirs(session_dir, exist_ok=True)
+        session_file = os.path.join(session_dir, f"{target_pid}.json")
+
+        if os.path.exists(session_file):
+            data = _read_json(session_file)
+            existing_cid = data.get("cid")
+            if existing_cid:
+                conv = await self.context.conversation_manager.get_conversation(umo, existing_cid)
+                if conv:
+                    await self.context.conversation_manager.switch_conversation(umo, existing_cid)
+                    await self.context.conversation_manager.update_conversation_persona_id(umo, target_pid, existing_cid)
+                    _write_json(session_file, {"cid": existing_cid})
+                    self._just_switched[umo] = True
+                    self._last_active[umo] = (target_pid, time.time())
+                    self._save_session()
+                    return
+
         plat_id = event.get_platform_name() or event.get_platform_id()
         cid = await self.context.conversation_manager.new_conversation(
             umo, plat_id or "", persona_id=target_pid,
         )
-        self._conv_map.setdefault(umo, {})[target_pid] = cid
-
+        _write_json(session_file, {"cid": cid})
         self._just_switched[umo] = True
         self._last_active[umo] = (target_pid, time.time())
         self._save_session()

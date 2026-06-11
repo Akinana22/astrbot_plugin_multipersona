@@ -1,7 +1,7 @@
 name: astrbot_plugin_multipersona
 desc: 三人格(小叶/Q/观)共生切换插件。独立记忆空间，双阶段确认切换，空闲超时权重随机唤醒。人格内核以 AstrBot Skill 形式存放，由插件每轮 LLM 请求自动注入。
 author: Akinana22
-version: 1.0.0
+version: 1.0.1
 display_name: AI 多重人格切换
 repo: https://github.com/Akinana22/astrbot_plugin_multipersona
 support_platforms:
