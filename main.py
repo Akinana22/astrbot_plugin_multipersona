@@ -429,10 +429,6 @@ class Main(star.Star):
         # 按句标点拆分段
         segments = [s.strip() for s in re.split(r'(?<=[。！？…])', text) if s.strip()]
         if len(segments) <= 1:
-            segments = [s.strip() for s in re.split(r'(?<=[，,])', text) if s.strip()]
-        if len(segments) <= 1:
-            segments = [text[i:i+15] for i in range(0, len(text), 15)]
-        if len(segments) <= 1:
             return
         result.chain[0].text = segments[0]
         asyncio.ensure_future(self._send_segments(event, segments[1:]))
