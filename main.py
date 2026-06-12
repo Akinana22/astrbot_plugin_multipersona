@@ -228,6 +228,29 @@ class Main(star.Star):
             if isinstance(v, list) and len(v) == 2:
                 self._last_active[umo] = (v[0], v[1])
 
+        old_conv = self._load_json_file("conv_map.json", None)
+        if old_conv is not None:
+            migrated = 0
+            for umo, pids in old_conv.items():
+                parts = umo.split(":")
+                platform = parts[0]
+                user = parts[2] if len(parts) > 2 else parts[1]
+                session_dir = os.path.join(self._data_dir, "sessions", platform, user)
+                os.makedirs(session_dir, exist_ok=True)
+                for pid, cid in pids.items():
+                    session_file = os.path.join(session_dir, f"{pid}.json")
+                    if not os.path.exists(session_file):
+                        _write_json(session_file, {"cid": cid})
+                        migrated += 1
+            if migrated > 0:
+                try:
+                    os.rename(
+                        self._data_file("conv_map.json"),
+                        self._data_file("conv_map.json.migrated"),
+                    )
+                except Exception:
+                    pass
+
     def _save_session(self):
         out = {}
         for umo, (pid, ts) in self._last_active.items():
