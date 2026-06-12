@@ -4,9 +4,12 @@ import os
 import random
 import re
 import time
+import logging
 
 from astrbot.api import AstrBotConfig, star
 from astrbot.api.event import AstrMessageEvent, MessageChain, filter, MessageEventResult
+
+_log = logging.getLogger("multipersona")
 
 # ── 状态机常量 ─────────────────────────────────────────
 IDLE = 0
@@ -324,6 +327,7 @@ class Main(star.Star):
     async def handle_message(self, event: AstrMessageEvent) -> None:
         msg = event.get_message_str().strip()
         umo = event.unified_msg_origin
+        _log.debug("[multipersona] handle_message: umo=%s msg=%s", umo[:40], msg[:60])
 
         # 1. 空闲超时
         await self._check_idle_timeout(umo, event)
@@ -336,6 +340,7 @@ class Main(star.Star):
             if elapsed > timeout:
                 self._switch_state.pop(umo, None)
             elif self._is_user_consent(msg):
+                _log.info("[multipersona] awaiting_user matched, switching to %s", st["target_pid"])
                 await self._execute_switch(umo, st["target_pid"], event)
                 self._switch_state.pop(umo, None)
                 if self.config.get("stop_event_after_switch", True):
@@ -355,6 +360,7 @@ class Main(star.Star):
             return
 
         current_pid = await self._resolve_current_pid(event)
+        _log.info("[multipersona] trigger matched: current=%s target=%s", current_pid, target_pid)
         if current_pid == target_pid:
             pdef = self._personas.get(target_pid, {})
             nm = pdef.get("display_name", target_pid)
@@ -381,6 +387,7 @@ class Main(star.Star):
                 _extract_response_text(response), umo,
             )
             if result:
+                _log.info("[multipersona] suggest detected, awaiting_user target=%s", result)
                 self._switch_state[umo] = {
                     "state": AWAITING_USER_CONSENT,
                     "target_pid": result,
@@ -396,11 +403,13 @@ class Main(star.Star):
             if self._check_persona_consent(
                 response_text, st.get("trigger_pid", ""), st["target_pid"],
             ):
+                _log.info("[multipersona] consent detected, switching to %s", st["target_pid"])
                 await self._execute_switch(umo, st["target_pid"], event)
                 self._switch_state.pop(umo, None)
                 return
             st["rounds"] = st.get("rounds", 0) + 1
             if st["rounds"] >= self.config.get("consent_timeout_rounds", 3):
+                _log.info("[multipersona] consent timeout, rounds=%s", st["rounds"])
                 self._switch_state.pop(umo, None)
 
     # ── 小叶分段发送 ────────────────────────────────────
@@ -420,6 +429,7 @@ class Main(star.Star):
             lambda m: EMOTION_MAP.get(m.group(1), {}).get(int(m.group(2)), m.group(0)),
             text,
         )
+        result.chain[0].text = text
         # 按句标点拆分段
         segments = [s.strip() for s in re.split(r'(?<=[。！？…])', text) if s.strip()]
         if len(segments) <= 1:
@@ -456,6 +466,7 @@ class Main(star.Star):
     # ── 切换执行 ────────────────────────────────────────
 
     async def _execute_switch(self, umo: str, target_pid: str, event):
+        _log.info("[multipersona] _execute_switch: umo=%s target=%s", umo[:40], target_pid)
         parts = umo.split(":")
         platform = parts[0]
         user = parts[2] if len(parts) > 2 else parts[1]
@@ -468,16 +479,16 @@ class Main(star.Star):
             data = _read_json(session_file)
             existing_cid = data.get("cid")
             if existing_cid:
-                conv = await self.context.conversation_manager.get_conversation(umo, existing_cid)
-                if conv:
-                    await self.context.conversation_manager.switch_conversation(umo, existing_cid)
-                    await self.context.conversation_manager.update_conversation_persona_id(umo, target_pid, existing_cid)
-                    _write_json(session_file, {"cid": existing_cid})
-                    self._just_switched[umo] = True
-                    self._last_active[umo] = (target_pid, time.time())
-                    self._save_session()
-                    return
+                _log.info("[multipersona] session found: %s cid=%s", session_file, existing_cid)
+                await self.context.conversation_manager.switch_conversation(umo, existing_cid)
+                await self.context.conversation_manager.update_conversation_persona_id(umo, target_pid, existing_cid)
+                _write_json(session_file, {"cid": existing_cid})
+                self._just_switched[umo] = True
+                self._last_active[umo] = (target_pid, time.time())
+                self._save_session()
+                return
 
+        _log.info("[multipersona] new session: %s", session_file)
         plat_id = event.get_platform_name() or event.get_platform_id()
         cid = await self.context.conversation_manager.new_conversation(
             umo, plat_id or "", persona_id=target_pid,
